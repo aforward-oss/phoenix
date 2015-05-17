@@ -100,6 +100,9 @@ defmodule Mix.Tasks.Phoenix.New do
     * `--no-ecto` - do not generate ecto files for
       the model layer
 
+    * `--force` - forces installation without a shell prompt;
+      primarily intended for automation in build systems
+
   ## Examples
 
       mix phoenix.new hello_world
@@ -114,7 +117,7 @@ defmodule Mix.Tasks.Phoenix.New do
 
   """
   @switches [dev: :boolean, brunch: :boolean, ecto: :boolean,
-             app: :string, module: :string, database: :string]
+             app: :string, module: :string, database: :string, force: :boolean]
 
   def run([version]) when version in ~w(-v --version) do
     Mix.shell.info "Phoenix v#{@version}"
@@ -142,6 +145,7 @@ defmodule Mix.Tasks.Phoenix.New do
     dev = Keyword.get(opts, :dev, false)
     ecto = Keyword.get(opts, :ecto, true)
     brunch = Keyword.get(opts, :brunch, true)
+    force = Keyword.get(opts, :force, false)
 
     {adapter_app, adapter_module, db_user, db_password} = set_ecto_adapter(db)
     pubsub_server = set_pubsub_server(mod)
@@ -155,6 +159,7 @@ defmodule Mix.Tasks.Phoenix.New do
                signing_salt: random_string(8),
                in_umbrella: in_umbrella?(path),
                brunch: brunch,
+               force: force,
                ecto: ecto,
                adapter_app: adapter_app,
                adapter_module: adapter_module,
@@ -170,7 +175,7 @@ defmodule Mix.Tasks.Phoenix.New do
     copy_static app, path, binding
 
     # Parallel installs
-    install? = Mix.shell.yes?("\nFetch and install dependencies?")
+    install? = force || Mix.shell.yes?("\nFetch and install dependencies?")
 
     File.cd!(path, fn ->
       brunch =
