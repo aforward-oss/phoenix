@@ -1,8 +1,14 @@
 defmodule Phoenix.Controller.FlashTest do
   use ExUnit.Case, async: true
   use RouterHelper
+  alias Phoenix.Controller.Flash
 
   import Phoenix.Controller
+
+  defmodule FlashEndpoint do
+    def config(:secret_key_base), do: "abc123"
+    def config(:live_view), do: [signing_salt: "liveview_salt456"]
+  end
 
   setup do
     Logger.disable(self())
@@ -117,6 +123,13 @@ defmodule Phoenix.Controller.FlashTest do
     end
   end
 
+  test "fetch based on the cookie" do
+    flash = Flash.sign_token(FlashEndpoint, "liveview_salt456", %{notice: "hi"})
+    conn = conn(flash_cookie: flash) |> fetch_flash()
+    assert get_flash(conn, :notice) == "hi"
+    assert get_flash(conn, "notice") == "hi"
+  end
+
   defp conn(opts \\ []) do
     conn = conn(:get, "/")
 
@@ -125,7 +138,13 @@ defmodule Phoenix.Controller.FlashTest do
       old_conn -> conn |> recycle_cookies(old_conn)
     end
 
+    conn = case opts[:flash_cookie] do
+      nil -> conn
+      token -> conn |> put_req_cookie("__phoenix_flash___", token <> "; max-age=60000; path=/")
+    end
+
     conn
+    |> Plug.Conn.put_private(:phoenix_endpoint, FlashEndpoint)
     |> with_session()
   end
 
